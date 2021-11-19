@@ -216,7 +216,7 @@ def main():
                                 #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
                                 # elif(rel_type == 'デ'):
                                 #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
-                                
+                                print(aaaaaa) 
                             else:
                                 pass
                         
