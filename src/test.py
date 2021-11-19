@@ -1,0 +1,1 @@
+with open('../KyotoCorpus4.0/dat/rel')
