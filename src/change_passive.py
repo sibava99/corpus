@@ -5,7 +5,7 @@ import argparse
 
 def create_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--knp_file',help='input_knpfile')
+    parser.add_argument('--knp_dir',help='input_knpdir')
     parser.add_argument('--ntc_dir',help='ntc directory with the files corresponding to knp file')
     # ex)python src/change_passive.py --knp_file KyotoCorpus/dat/rel/950101.knp --ntc_dir NTC_1.5/dat/ntc/knp   
     return parser
@@ -145,10 +145,11 @@ def write_log(sentence_dict:dict,log):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    knp_name = os.path.splitext(os.path.basename(args.knp_file))
-    pathlist = glob.glob(os.path.join(args.ntc_dir,f'{knp_name[0]}*',))
-    knp = open(args.knp_file,'r',encoding='euc-jp')
-    log = open('log_passive_argument.txt',mode = 'w',encoding='euc-jp')
+    knp_name = os.path.splitext(os.path.basename(args.knp_dir))
+    ntc_pathlist = glob.glob(os.path.join(args.ntc_dir,f'{knp_name[0]}*',))
+    knp_pathlist = glob.glob(args.knp_dir + '/*')
+    # knp = open(args.knp_dir,'r',encoding='euc-jp')
+    # log = open('log_passive_argument.txt',mode = 'w',encoding='euc-jp')
     knp_dict = make_sentence_dict(args.knp_file,'utf-8')
     knp_tag_dict = make_tag_dict(args.knp_file)
     passive_count = 0
@@ -176,7 +177,7 @@ def main():
                     if (morph[0] == '*'):
                         pass
                     else:
-                        ntc_char_num += len(morph.split(' ')[0])
+                        ntc_char_num += len(morph.split('   ')[0])
                     if ('passive' in morph):
                         knp_char_num = 0
                         passive_morph = morph.split(' ')
@@ -212,10 +213,10 @@ def main():
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list)
                                 elif(rel_type == 'ヲ'):
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list)
-                                # elif(rel_type == 'カラ'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
-                                # elif(rel_type == 'デ'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
+                                elif(rel_type == 'カラ'):
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
+                                elif(rel_type == 'デ'):
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
                                 
                             else:
                                 pass
@@ -261,8 +262,8 @@ def main():
                                 
 
     
-    knp.close()
-    log.close()
+    # knp.close()
+    # log.close()
 
     print(f'identify {passive_count} passive sentence') #Total 1032sentence
     print(f'identify {success_count} of id pair')
