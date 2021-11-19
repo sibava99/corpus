@@ -212,10 +212,10 @@ def main():
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list)
                                 elif(rel_type == 'ヲ'):
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list)
-                                elif(rel_type == 'カラ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
-                                elif(rel_type == 'デ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
+                                # elif(rel_type == 'カラ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
+                                # elif(rel_type == 'デ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
                                 
                             else:
                                 pass
