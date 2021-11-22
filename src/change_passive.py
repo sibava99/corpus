@@ -10,7 +10,7 @@ def create_parser():
     # ex)python src/change_passive.py --knp_file KyotoCorpus/dat/rel/950101.knp --ntc_dir NTC_1.5/dat/ntc/knp   
     return parser
 
-def make_sentence_dict(path,encoding_type):
+def make_sentence_dict(path_list,encoding_type):
         sentence_dict = {}
         """
         sentence_dict has S-ID as a key and ntc texts as a value.
@@ -22,25 +22,27 @@ def make_sentence_dict(path,encoding_type):
                 [....]
             ]
         """
-        with open(path,'r',encoding=encoding_type) as ntc:
-            lines = ntc.readlines()
-            s_id = ''
-            c = -1
-            for l in lines:
-                if (l[0] == '#'):
-                    s_id = extract_pat(r'# S-ID:(([0-9]|-)*) ', l) #key of sentence_dict (ex. # S-ID:950101004-002 KNP:96/10/27 MOD:2004/11/12)
-                    c = -1 #This indicate phrase number
-                    sentence_dict[s_id] = []
-                elif(l[0] == '*'):
-                    sentence_dict[s_id].append([l])
-                    c += 1
-                else:
-                    sentence_dict[s_id][c].append(l)
+        for path in path_list:
+            with open(path,'r',encoding=encoding_type) as ntc:
+                lines = ntc.readlines()
+                s_id = ''
+                c = -1
+                for l in lines:
+                    if (l[0] == '#'):
+                        s_id = extract_pat(r'# S-ID:(([0-9]|-)*) ', l) #key of sentence_dict (ex. # S-ID:950101004-002 KNP:96/10/27 MOD:2004/11/12)
+                        c = -1 #This indicate phrase number
+                        sentence_dict[s_id] = []
+                    elif(l[0] == '*'):
+                        sentence_dict[s_id].append([l])
+                        c += 1
+                    else:
+                        sentence_dict[s_id][c].append(l)
         return sentence_dict
 
-def make_tag_dict(path):
-        sentence_dict = {}
-        with open(path,'r',encoding='utf-8') as ntc:
+def make_tag_dict(path_list,encoding_type):
+    sentence_dict = {}
+    for path in path_list:
+        with open(path,'r',encoding=encoding_type) as ntc:
             lines = ntc.readlines()
             s_id = ''
             c = -1
@@ -56,7 +58,7 @@ def make_tag_dict(path):
                     c += 1
                 else:
                     sentence_dict[s_id][c].append(l)
-        return sentence_dict
+    return sentence_dict
 
 def id_search(sid,target,arg_tag,ntc_dict,knp_tag_dict):
     if not (sid in ntc_dict): 
@@ -84,11 +86,11 @@ def id_search(sid,target,arg_tag,ntc_dict,knp_tag_dict):
         for morph in phrase:
             if(morph[0]=='*'):
                 continue
-            ntc_word_count += len(morph.split(' ')[0])
+            ntc_word_count += len(morph.split('\t')[0])
             # match_id = extract_pat(id_pat, morph)
             # if(match_id):
             #     ntc_id = match_id
-            if((ntc_word_count == word_count) and (morph.split(' ')[0] == target) and (ntc_id:=extract_pat(id_pat,morph))):
+            if((ntc_word_count == word_count) and (morph.split('\t')[0] == target) and (ntc_id:=extract_pat(id_pat,morph))):
                 return ntc_id
             if(ntc_word_count >= word_count):
                 for id_candidate in phrase:
@@ -145,13 +147,12 @@ def write_log(sentence_dict:dict,log):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    knp_name = os.path.splitext(os.path.basename(args.knp_dir))
-    ntc_pathlist = glob.glob(os.path.join(args.ntc_dir,f'{knp_name[0]}*',))
+    ntc_pathlist = glob.glob(args.ntc_dir + '/9501*')
     knp_pathlist = glob.glob(args.knp_dir + '/*')
     # knp = open(args.knp_dir,'r',encoding='euc-jp')
     # log = open('log_passive_argument.txt',mode = 'w',encoding='euc-jp')
-    knp_dict = make_sentence_dict(args.knp_file,'utf-8')
-    knp_tag_dict = make_tag_dict(args.knp_file)
+    knp_dict = make_sentence_dict(knp_pathlist,'utf-8')
+    knp_tag_dict = make_tag_dict(knp_pathlist,'utf-8')
     passive_count = 0
     success_count = 0
     gawoni_count = 0
@@ -166,8 +167,8 @@ def main():
     target_pat = r'target="(.+?)"'
     sid_pat = r'sid="(.+?)"'
     arg_id_pat = r'id="(\d+?)"'
-    for path in pathlist:
-        ntc_dict = make_sentence_dict(path,'euc-jp')
+    for path in ntc_pathlist:
+        ntc_dict = make_sentence_dict([path],'euc-jp')
         for k,sentence in ntc_dict.items():
             if not (k in knp_dict):
                 continue
@@ -177,10 +178,10 @@ def main():
                     if (morph[0] == '*'):
                         pass
                     else:
-                        ntc_char_num += len(morph.split('   ')[0])
+                        ntc_char_num += len(morph.split('\t')[0])
                     if ('passive' in morph):
                         knp_char_num = 0
-                        passive_morph = morph.split(' ')
+                        passive_morph = morph.split('\t')
                         passive_morph.pop()
                         tag_info = ''
                         for knp_pharase in knp_dict[k]:
@@ -222,11 +223,11 @@ def main():
                                 pass
                         
                         ntc_id_list = re.findall(r'[0-9]+', morph)
-                        # if(exo_ntc := re.search(r'exo.',morph)):
-                        #     ntc_id_list.append(exo_ntc.group())
+                        if(exo_ntc := re.search(r'exo.',morph)):
+                            ntc_id_list.append(exo_ntc.group())
                         knp_id_list = re.findall(r'[0-9]+', ','.join(argument_list))
-                        # if(exo_knp := re.search(r'exo.',','.join(argument_list))):
-                        #     knp_id_list.append(exo_knp.group())
+                        if(exo_knp := re.search(r'exo.',','.join(argument_list))):
+                            knp_id_list.append(exo_knp.group())
                         passive_count +=1
                         if (set(knp_id_list) >= set(ntc_id_list)):
                             success_count+=1
@@ -238,6 +239,8 @@ def main():
                             ga_index = 0
                             wo_index = 0
                             ni_index = 0
+                            single_index = 0
+
                             for arg in argument_list:
                                 if ('ga="' in arg):
                                     ga_index +=1
@@ -245,6 +248,8 @@ def main():
                                     ni_index +=1
                                 if('wo="' in arg):
                                     wo_index +=1
+                            if(len(ntc_id_list) == 1):
+                                single_index += 1
                             if(ni_index >1):
                                 nini_count +=1
                                 # print(argument_list)     
@@ -267,6 +272,6 @@ def main():
 
     print(f'identify {passive_count} passive sentence') #Total 1032sentence
     print(f'identify {success_count} of id pair')
-    print(f'gani{gani_count},gawo{gawo_count},niwo{niwo_count},nini{nini_count},gawoni{gawoni_count}')
+    print(f'single{single_index},gani{gani_count},gawo{gawo_count},niwo{niwo_count},nini{nini_count},gawoni{gawoni_count}')
 if __name__ == '__main__':
     main()
