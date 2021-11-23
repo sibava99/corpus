@@ -160,6 +160,7 @@ def main():
     gani_count = 0
     niwo_count = 0
     gawo_count = 0
+    single_count = 0
 
     none_knp = 0
     tag_pat = r'<.+?>'
@@ -214,10 +215,12 @@ def main():
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list)
                                 elif(rel_type == 'ヲ'):
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list)
-                                elif(rel_type == 'カラ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
-                                elif(rel_type == 'デ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
+                                # elif(rel_type == 'カラ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
+                                # elif(rel_type == 'デ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
+                                # elif(rel_type == 'ガ2'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list)
                                 
                             else:
                                 pass
@@ -229,9 +232,10 @@ def main():
                         if(exo_knp := re.search(r'exo.',','.join(argument_list))):
                             knp_id_list.append(exo_knp.group())
                         passive_count +=1
-                        if (set(knp_id_list) >= set(ntc_id_list)):
+                        knp_id_list = [k for k in knp_id_list if (k in ntc_id_list)]
+                        if (set(knp_id_list) == set(ntc_id_list)):
                             success_count+=1
-                            print(knp_id_list,ntc_id_list)
+                            # print(knp_id_list,ntc_id_list)
                             
                             # print(tag_info)
                             # print(argument_list)
@@ -239,8 +243,6 @@ def main():
                             ga_index = 0
                             wo_index = 0
                             ni_index = 0
-                            single_index = 0
-
                             for arg in argument_list:
                                 if ('ga="' in arg):
                                     ga_index +=1
@@ -248,21 +250,20 @@ def main():
                                     ni_index +=1
                                 if('wo="' in arg):
                                     wo_index +=1
-                            if(len(ntc_id_list) == 1):
-                                single_index += 1
-                            if(ni_index >1):
+                            if(len(set(knp_id_list)) == 1):
+                                single_count += 1
+                            elif(ni_index >1):
                                 nini_count +=1
-                                # print(argument_list)     
-                                # print(morph)
-                                # print(tag_info)
-                            if(ga_index >0 and wo_index > 0 and ni_index > 0):
+                                print(argument_list)     
+                                print(morph)
+                                print(tag_info)
+                            elif(ga_index >0 and wo_index > 0 and ni_index > 0):
                                 gawoni_count +=1
-                                
-                            if(ga_index>0 and ni_index>0 and wo_index==0):
+                            elif(ga_index>0 and ni_index>0 and wo_index==0):
                                 gani_count +=1    
-                            if(ga_index>0 and ni_index==0 and wo_index>0):
+                            elif(ga_index>0 and ni_index==0 and wo_index>0):
                                 gawo_count +=1
-                            if(ga_index==0 and ni_index>0 and wo_index>0):
+                            elif(ga_index==0 and ni_index>0 and wo_index>0):
                                 niwo_count +=1 
                                 
 
@@ -272,6 +273,6 @@ def main():
 
     print(f'identify {passive_count} passive sentence') #Total 1032sentence
     print(f'identify {success_count} of id pair')
-    print(f'single{single_index},gani{gani_count},gawo{gawo_count},niwo{niwo_count},nini{nini_count},gawoni{gawoni_count}')
+    print(f'single{single_count},gani{gani_count},gawo{gawo_count},niwo{niwo_count},nini{nini_count},gawoni{gawoni_count}')
 if __name__ == '__main__':
     main()
