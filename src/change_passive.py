@@ -60,7 +60,7 @@ def make_tag_dict(path_list,encoding_type):
                     sentence_dict[s_id][c].append(l)
     return sentence_dict
 
-def id_search(sid,target,arg_tag,ntc_dict,knp_tag_dict):
+def id_search(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:dict):
     if not (sid in ntc_dict): 
         return ''
     id_pat = r'id="(\d+?)"'
@@ -90,7 +90,7 @@ def id_search(sid,target,arg_tag,ntc_dict,knp_tag_dict):
             # match_id = extract_pat(id_pat, morph)
             # if(match_id):
             #     ntc_id = match_id
-            if((ntc_word_count == word_count) and (morph.split('\t')[0] == target) and (ntc_id:=extract_pat(id_pat,morph))):
+            if((ntc_word_count == word_count) and (ntc_id:=extract_pat(id_pat,morph))):
                 return ntc_id
             if(ntc_word_count >= word_count):
                 for id_candidate in phrase:
@@ -101,7 +101,7 @@ def id_search(sid,target,arg_tag,ntc_dict,knp_tag_dict):
                 return  retval #return last id in pharase
     
 
-def extract_pat(pat,text):
+def extract_pat(pat:str,text:str):
     #given pat and text,return pat as str
     target = ''
     m = re.search(pat,text)
@@ -111,26 +111,31 @@ def extract_pat(pat,text):
         target = ''
     return target
 
-def make_argumentlist(sid,target,arg_tag,ntc_dict,knp_tag_dict,kaku:str,argument_list):
+def make_argumentlist(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:dict,kaku:str,argument_list:list,gold_id_list:list):
     unspecified_list = ['不特定:人1','不特定:人2','不特定:人3','不特定:人6','不特定:物1','不特定:物2','不特定:物3','不特定:物4','後文','なし']
+    if(target in unspecified_list):
+        return argument_list
     if((target == '不特定:人') or (target == '不特定:状況')):
+        if('exog' not in gold_id_list):
+            return argument_list
         argument_list.append(f'{kaku}="exog"')
         argument_list.append(f'{kaku}_type="zero"')
         return argument_list
-    if(target in unspecified_list):
-
-        return argument_list
     if(target == '著者'):
+        if('exo1' not in gold_id_list):
+            return argument_list
         argument_list.append(f'{kaku}="exo1"')
         argument_list.append(f'{kaku}ga_type="zero"')
         return argument_list   
     if(target == '読者'):
+        if('exo2' not in gold_id_list):
+            return argument_list
         argument_list.append(f'{kaku}="exo2"')
         argument_list.append(f'{kaku}_type="zero"')
         return argument_list
     kaku_id = id_search(sid, target, arg_tag, ntc_dict, knp_tag_dict)
 
-    if(len(kaku_id) == 0):
+    if(len(kaku_id) == 0 or (kaku_id not in gold_id_list)):
         return argument_list
     argument_list.append(f'{kaku}="{kaku_id}"')
     argument_list.append(f'{kaku}_type="zero"')
@@ -181,9 +186,10 @@ def main():
                     else:
                         ntc_char_num += len(morph.split('\t')[0])
                     if ('passive' in morph):
+                        passive_count +=1
                         knp_char_num = 0
                         passive_morph = morph.split('\t')
-                        passive_morph.pop()
+                        ntc_tag_info = passive_morph.pop() #ex)alt="passive" ga="exog" ga_type="zero" o="17" o_type="dep" type="pred"
                         tag_info = ''
                         for knp_pharase in knp_dict[k]:
                             for knp_morph in knp_pharase:
@@ -200,6 +206,10 @@ def main():
                                 continue
                             break
                         # print(tag_info)
+                        ntc_id_list = re.findall(r'[ga|wo|ni]="([0-9]+?)"', morph) #contain ntc_predicate's argument id and exo_tag
+                        if(exo_ntc := re.findall(r'exo.',morph)):
+                            ntc_id_list.extend(exo_ntc)
+
                         argument_list = [r'alt="passive"']
                         tag_list = re.findall(tag_pat,tag_info)
                         for tag in tag_list:
@@ -210,36 +220,29 @@ def main():
                                 arg_id = extract_pat(arg_id_pat, tag)
                                 rel_type = m.groups()[0]
                                 if(rel_type == 'ガ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga', argument_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga', argument_list,ntc_id_list)
                                 elif(rel_type == 'ニ'or rel_type=='ニヨッテ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list,ntc_id_list)
                                 elif(rel_type == 'ヲ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list)
-                                # elif(rel_type == 'カラ'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list)
-                                # elif(rel_type == 'デ'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list,ntc_id_list)
+                                elif(rel_type == 'カラ'):
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list,ntc_id_list)
+                                elif(rel_type == 'デ'):
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list,ntc_id_list)
                                 # elif(rel_type == 'ガ2'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list)
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list,ntc_id_list)
                                 
                             else:
                                 pass
-                        
-                        ntc_id_list = re.findall(r'[0-9]+', morph)
-                        if(exo_ntc := re.search(r'exo.',morph)):
-                            ntc_id_list.append(exo_ntc.group())
-                        knp_id_list = re.findall(r'[0-9]+', ','.join(argument_list))
-                        if(exo_knp := re.search(r'exo.',','.join(argument_list))):
-                            knp_id_list.append(exo_knp.group())
-                        passive_count +=1
-                        knp_id_list = [k for k in knp_id_list if (k in ntc_id_list)]
+                        knp_id_list = re.findall(r'[ga|wo|ni|kara|de|ga2]="([0-9]+?)"',','.join(argument_list))
+                        if(exo_knp := re.findall(r'exo.',','.join(argument_list))):
+                            knp_id_list.extend(exo_knp)
                         if (set(knp_id_list) == set(ntc_id_list)):
                             success_count+=1
-                            # print(knp_id_list,ntc_id_list)
-                            
+                            print(knp_id_list,ntc_id_list)
                             # print(tag_info)
-                            # print(argument_list)
-                            # print(morph)
+                            print(argument_list)
+                            print(morph)
                             ga_index = 0
                             wo_index = 0
                             ni_index = 0
@@ -254,9 +257,9 @@ def main():
                                 single_count += 1
                             elif(ni_index >1):
                                 nini_count +=1
-                                print(argument_list)     
-                                print(morph)
-                                print(tag_info)
+                                # print(argument_list)     
+                                # print(morph)
+                                # print(tag_info)
                             elif(ga_index >0 and wo_index > 0 and ni_index > 0):
                                 gawoni_count +=1
                             elif(ga_index>0 and ni_index>0 and wo_index==0):
