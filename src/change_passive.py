@@ -39,6 +39,41 @@ def make_sentence_dict(path_list,encoding_type):
                         sentence_dict[s_id][c].append(l)
         return sentence_dict
 
+def make_juman_sentence_dict(path_list,encoding_type):
+        sentence_dict = {}
+        """
+        sentence_dict has S-ID as a key and ntc texts as a value.
+        
+        sentence_dict['# S-ID:950101004-002 KNP:96/10/27 MOD:2004/11/12'] = 
+            [
+                [* 0 1D,ロシア ろしあ * 名詞 地名 * * eq="1"/id="35",ロシア ろしあ * 名詞 地名 * * eq="1"/id="35",...]
+                [* 1 2D,首都 しゅと * 名詞 普通名詞 * * _,グロズヌイ ぐろずぬい * 名詞 地名 * * eq="2"/id="1",に に * 助詞 格助詞 * * _]
+                [....]
+            ]
+        """
+        for path in path_list:
+            with open(path,'r',encoding=encoding_type) as ntc:
+                lines = ntc.readlines()
+                c = -1 #This indicate phrase number
+                sentence_count = 1 #This indicate sentence number ex)005
+
+                document_id = extract_pat('.*?([0-9]*)\.ntc',path)
+                s_id = document_id + '-' + format(sentence_count,'0>3')
+                sentence_dict[document_id + '-' + format(sentence_count,'0>3')] = []
+                for l in lines:
+                    if(l[0] == '*'):
+                        sentence_dict[s_id].append([l])
+                        c += 1
+                    elif('EOS' in l):
+                        sentence_dict[s_id].append([l])
+                        sentence_count +=1
+                        c = -1
+                        s_id = document_id + '-' + format(sentence_count,'0>3')
+                        sentence_dict[s_id] = []
+                    else:
+                        sentence_dict[s_id][c].append(l)
+        return sentence_dict
+
 def make_tag_dict(path_list,encoding_type):
     sentence_dict = {}
     for path in path_list:
@@ -152,7 +187,8 @@ def write_log(sentence_dict:dict,log):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    ntc_pathlist = glob.glob(args.ntc_dir + '/9501*')
+    # ntc_pathlist = glob.glob(args.ntc_dir + '/9501*')
+    ntc_pathlist = ['/home/sibava/corpus/ntc-sample/train/950101-0001-950101004.ntc']
     knp_pathlist = glob.glob(args.knp_dir + '/*')
     # knp = open(args.knp_dir,'r',encoding='euc-jp')
     # log = open('log_passive_argument.txt',mode = 'w',encoding='euc-jp')
@@ -177,7 +213,8 @@ def main():
     sid_pat = r'sid="(.+?)"'
     arg_id_pat = r'id="(\d+?)"'
     for path in ntc_pathlist:
-        ntc_dict = make_sentence_dict([path],'euc-jp')
+        ntc_dict = make_juman_sentence_dict([path],'utf-8')
+        print(ntc_dict)
         for k,sentence in ntc_dict.items():
             if not (k in knp_dict):
                 continue
@@ -212,7 +249,7 @@ def main():
                             else:
                                 continue
                             break
-                        # print(tag_info)
+                        print(tag_info)
                         argument_list = [r'alt="passive"']
                         tag_list = re.findall(tag_pat,tag_info)
                         for tag in tag_list:
@@ -222,6 +259,7 @@ def main():
                                 sid = extract_pat(sid_pat, tag)
                                 arg_id = extract_pat(arg_id_pat, tag)
                                 rel_type = m.groups()[0]
+                                print(target,sid,arg_id,rel_type)
                                 if(rel_type == 'ガ'):
                                     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga', argument_list,ntc_tag_dict)
                                 elif(rel_type == 'ニ'or rel_type=='ニヨッテ'):
