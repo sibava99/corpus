@@ -7,7 +7,7 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--knp_dir',help='input_knpdir')
     parser.add_argument('--ntc_dir',help='ntc directory with the files corresponding to knp file')
-    # ex)python src/change_passive.py --knp_file KyotoCorpus/dat/rel/950101.knp --ntc_dir NTC_1.5/dat/ntc/knp   
+    # ex)python src/change_passive.py --knp_dir KyotoCorpus/dat/rel/950101.knp --ntc_dir NTC_1.5/dat/ntc/ipa
     return parser
 
 def make_sentence_dict(path_list,encoding_type):
@@ -111,7 +111,7 @@ def extract_pat(pat:str,text:str):
         target = ''
     return target
 
-def make_argumentlist(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:dict,kaku:str,argument_list:list,gold_id_list:list):
+def make_argumentlist(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:dict,kaku:str,argument_list:list,gold_id_list):
     unspecified_list = ['不特定:人1','不特定:人2','不特定:人3','不特定:人6','不特定:物1','不特定:物2','不特定:物3','不特定:物4','後文','なし']
     if(target in unspecified_list):
         return argument_list
@@ -125,7 +125,7 @@ def make_argumentlist(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:
         if('exo1' not in gold_id_list):
             return argument_list
         argument_list.append(f'{kaku}="exo1"')
-        argument_list.append(f'{kaku}ga_type="zero"')
+        argument_list.append(f'{kaku}_type="zero"')
         return argument_list   
     if(target == '読者'):
         if('exo2' not in gold_id_list):
@@ -138,7 +138,7 @@ def make_argumentlist(sid:str,target:str,arg_tag:str,ntc_dict:dict,knp_tag_dict:
     if(len(kaku_id) == 0 or (kaku_id not in gold_id_list)):
         return argument_list
     argument_list.append(f'{kaku}="{kaku_id}"')
-    argument_list.append(f'{kaku}_type="zero"')
+    argument_list.append(f'{kaku}_type="{gold_id_list[kaku_id]}"')
     return argument_list
 
 def write_log(sentence_dict:dict,log):
@@ -160,11 +160,14 @@ def main():
     knp_tag_dict = make_tag_dict(knp_pathlist,'utf-8')
     passive_count = 0
     success_count = 0
-    gawoni_count = 0
+    gaoni_count = 0
     nini_count = 0
     gani_count = 0
-    niwo_count = 0
-    gawo_count = 0
+    nio_count = 0
+    gao_count = 0
+    ga_count = 0
+    ni_count = 0
+    o_count = 0
     single_count = 0
 
     none_knp = 0
@@ -190,6 +193,10 @@ def main():
                         knp_char_num = 0
                         passive_morph = morph.split('\t')
                         ntc_tag_info = passive_morph.pop() #ex)alt="passive" ga="exog" ga_type="zero" o="17" o_type="dep" type="pred"
+                        ntc_tag_dict = {} #ex){'exog': 'zero', '3': 'dep'}
+                        for kaku in ['ga','o','ni']:
+                            if(search_id := extract_pat(f'{kaku}="(.+?)"', ntc_tag_info)):
+                                ntc_tag_dict[search_id] = extract_pat(f'{kaku}_type="(.+?)"', ntc_tag_info)
                         tag_info = ''
                         for knp_pharase in knp_dict[k]:
                             for knp_morph in knp_pharase:
@@ -206,10 +213,6 @@ def main():
                                 continue
                             break
                         # print(tag_info)
-                        ntc_id_list = re.findall(r'[ga|wo|ni]="([0-9]+?)"', morph) #contain ntc_predicate's argument id and exo_tag
-                        if(exo_ntc := re.findall(r'exo.',morph)):
-                            ntc_id_list.extend(exo_ntc)
-
                         argument_list = [r'alt="passive"']
                         tag_list = re.findall(tag_pat,tag_info)
                         for tag in tag_list:
@@ -220,55 +223,61 @@ def main():
                                 arg_id = extract_pat(arg_id_pat, tag)
                                 rel_type = m.groups()[0]
                                 if(rel_type == 'ガ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga', argument_list,ntc_id_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga', argument_list,ntc_tag_dict)
                                 elif(rel_type == 'ニ'or rel_type=='ニヨッテ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list,ntc_id_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ni', argument_list,ntc_tag_dict)
                                 elif(rel_type == 'ヲ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'wo', argument_list,ntc_id_list)
-                                elif(rel_type == 'カラ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list,ntc_id_list)
-                                elif(rel_type == 'デ'):
-                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list,ntc_id_list)
+                                    argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'o', argument_list,ntc_tag_dict)
+                                # elif(rel_type == 'カラ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list,ntc_tag_dict)
+                                # elif(rel_type == 'デ'):
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'de', argument_list,ntc_tag_dict)
                                 # elif(rel_type == 'ガ2'):
-                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list,ntc_id_list)
-                                
+                                #     argument_list = make_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list,ntc_tag_dict)
                             else:
                                 pass
-                        knp_id_list = re.findall(r'[ga|wo|ni|kara|de|ga2]="([0-9]+?)"',','.join(argument_list))
+                        knp_id_list = re.findall(r'[ga|o|ni|kara|de|ga2]="([0-9]+?)"',','.join(argument_list))
                         if(exo_knp := re.findall(r'exo.',','.join(argument_list))):
                             knp_id_list.extend(exo_knp)
-                        if (set(knp_id_list) == set(ntc_id_list)):
+                        # if(set(knp_id_list) != set([x for x in set(ntc_tag_dict.keys()) if x.isdigit()])):
+                        # if(set(knp_id_list) == set(ntc_tag_dict.keys())):
+                        if(set(knp_id_list) != set(ntc_tag_dict.keys()) and ('exog' in ntc_tag_dict.keys()) and ('exog' not in knp_id_list)):
                             success_count+=1
-                            print(knp_id_list,ntc_id_list)
-                            # print(tag_info)
+                            # print(knp_id_list,set(ntc_tag_dict.keys()))
+                            print(tag_info)
                             print(argument_list)
                             print(morph)
                             ga_index = 0
-                            wo_index = 0
+                            o_index = 0
                             ni_index = 0
                             for arg in argument_list:
                                 if ('ga="' in arg):
                                     ga_index +=1
                                 if('ni="' in arg):
                                     ni_index +=1
-                                if('wo="' in arg):
-                                    wo_index +=1
-                            if(len(set(knp_id_list)) == 1):
-                                single_count += 1
-                            elif(ni_index >1):
+                                if('o="' in arg):
+                                    o_index +=1
+                            # if(len(set(knp_id_list)) == 1):
+                            #     single_count += 1
+                            if(ni_index >1):
                                 nini_count +=1
                                 # print(argument_list)     
                                 # print(morph)
                                 # print(tag_info)
-                            elif(ga_index >0 and wo_index > 0 and ni_index > 0):
-                                gawoni_count +=1
-                            elif(ga_index>0 and ni_index>0 and wo_index==0):
+                            elif(ga_index >0 and o_index > 0 and ni_index > 0):
+                                gaoni_count +=1
+                            elif(ga_index>0 and ni_index>0 and o_index==0):
                                 gani_count +=1    
-                            elif(ga_index>0 and ni_index==0 and wo_index>0):
-                                gawo_count +=1
-                            elif(ga_index==0 and ni_index>0 and wo_index>0):
-                                niwo_count +=1 
-                                
+                            elif(ga_index>0 and ni_index==0 and o_index>0):
+                                gao_count +=1
+                            elif(ga_index==0 and ni_index>0 and o_index>0):
+                                nio_count +=1 
+                            elif(ga_index==1 and ni_index==0 and o_index==0):
+                                ga_count +=1 
+                            elif(ga_index==0 and ni_index==1 and o_index==0):
+                                ni_count +=1 
+                            elif(ga_index==0 and ni_index==0 and o_index==1):
+                                o_count +=1 
 
     
     # knp.close()
@@ -276,6 +285,6 @@ def main():
 
     print(f'identify {passive_count} passive sentence') #Total 1032sentence
     print(f'identify {success_count} of id pair')
-    print(f'single{single_count},gani{gani_count},gawo{gawo_count},niwo{niwo_count},nini{nini_count},gawoni{gawoni_count}')
+    print(f'ga{ga_count},ni{ni_count},o{o_count},gani{gani_count},gao{gao_count},nio{nio_count},nini{nini_count},gaoni{gaoni_count}')
 if __name__ == '__main__':
     main()
