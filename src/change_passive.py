@@ -26,10 +26,12 @@ def make_sentence_dict(path_list,encoding_type):
             with open(path,'r',encoding=encoding_type) as ntc:
                 lines = ntc.readlines()
                 s_id = ''
+                sentence_count = 0
                 c = -1
                 for l in lines:
                     if (l[0] == '#'):
-                        s_id = extract_pat(r'# S-ID:(([0-9]|-)*) ', l) #key of sentence_dict (ex. # S-ID:950101004-002 KNP:96/10/27 MOD:2004/11/12)
+                        sentence_count += 1
+                        s_id = extract_pat(r'# S-ID:([0-9]*)-[0-9]* ', l) + '-' + format(sentence_count,'0>3') #key of sentence_dict (ex. # S-ID:950101004-002 KNP:96/10/27 MOD:2004/11/12)
                         c = -1 #This indicate phrase number
                         sentence_dict[s_id] = []
                     elif(l[0] == '*'):
@@ -57,7 +59,7 @@ def make_juman_sentence_dict(path_list,encoding_type):
                 c = -1 #This indicate phrase number
                 sentence_count = 1 #This indicate sentence number ex)005
 
-                document_id = extract_pat('.*?([0-9]*)\.ntc',path)
+                document_id = extract_pat('.*?([0-9]*)\.ntc',path) 
                 s_id = document_id + '-' + format(sentence_count,'0>3')
                 sentence_dict[document_id + '-' + format(sentence_count,'0>3')] = []
                 for l in lines:
@@ -80,11 +82,13 @@ def make_tag_dict(path_list,encoding_type):
         with open(path,'r',encoding=encoding_type) as ntc:
             lines = ntc.readlines()
             s_id = ''
+            sentence_count = 0
             c = -1
             for l in lines:
                 if (l[0] == '#'):
-                    s_id = extract_pat(r'# S-ID:(([0-9]|-)*) ', l) #key of sentence_dict (ex.950101004-002)
                     c = -1 #This indicate phrase number
+                    sentence_count += 1
+                    s_id = extract_pat(r'# S-ID:([0-9]*)-[0-9]* ', l) + '-' + format(sentence_count,'0>3') 
                     sentence_dict[s_id] = []
                 elif(l[0] == '*'):
                     continue
@@ -214,10 +218,11 @@ def main():
     arg_id_pat = r'id="(\d+?)"'
     for path in ntc_pathlist:
         ntc_dict = make_juman_sentence_dict([path],'utf-8')
-        print(ntc_dict)
+        # print(ntc_dict)
         for k,sentence in ntc_dict.items():
+            print(k)
             if not (k in knp_dict):
-                continue
+                continue  
             ntc_char_num = 0
             for phrase in sentence:
                 for morph in phrase:
