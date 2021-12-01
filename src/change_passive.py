@@ -283,8 +283,8 @@ def main():
                         if(exo_knp := re.findall(r'exo.',','.join(argument_list))):
                             knp_id_list.extend(exo_knp)
                         # if(set(knp_id_list) != set([x for x in set(ntc_tag_dict.keys()) if x.isdigit()])):
-                        # if(set(knp_id_list) == set(ntc_tag_dict.keys())):
-                        if(set(knp_id_list) != set(ntc_tag_dict.keys()) and ('exog' in ntc_tag_dict.keys()) and ('exog' not in knp_id_list)):
+                        if(set(knp_id_list) == set(ntc_tag_dict.keys())):
+                        # if(set(knp_id_list) != set(ntc_tag_dict.keys()) and ('exog' in ntc_tag_dict.keys()) and ('exog' not in knp_id_list)):
                             success_count+=1
                             # print(knp_id_list,set(ntc_tag_dict.keys()))
                             print(tag_info)
