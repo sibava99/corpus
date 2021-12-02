@@ -153,7 +153,7 @@ def write_log(sentence_dict:dict,log):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    ntc_pathlist = glob.glob(args.ntc_dir + '/9501*')
+    ntc_pathlist = glob.glob(args.ntc_dir + '/*')
     knp_pathlist = glob.glob(args.knp_dir + '/*')
     # knp = open(args.knp_dir,'r',encoding='euc-jp')
     # log = open('log_passive_argument.txt',mode = 'w',encoding='euc-jp')
@@ -172,16 +172,19 @@ def main():
     single_count = 0
 
     none_knp = 0
-    tag_pat = r'<.+?>'
-    rel_pat = r'<rel type="(.+?)"'
-    target_pat = r'target="(.+?)"'
-    sid_pat = r'sid="(.+?)"'
-    arg_id_pat = r'id="(\d+?)"'
+    tag_pat = re.compile(r'<.+?>')
+    rel_pat = re.compile(r'<rel type="(.+?)"')
+    target_pat = re.compile(r'target="(.+?)"')
+    sid_pat = re.compile(r'sid="(.+?)"')
+    arg_id_pat = re.compile(r'id="(\d+?)"')
+    passive_pat = re.compile(r'alt="passive".*')
     for path in ntc_pathlist:
         ntc_dict = make_sentence_dict([path],'utf-8')
         with open('passive-juman/train/' + os.path.split(path)[1],'w',encoding='utf-8') as passive_juman:
-            for k,sentence in ntc_dict.items():
+            for k,sentence in ntc_dict.items(): #fix here!! break and copy sid-juman without sid. delete passive predicat's argument info.
                 if not (k in knp_dict):
+                    joined = [''.join(x) for x in sentence]
+                    passive_juman.write(re.sub(passive_pat,'',''.join(joined)))
                     continue
                 ntc_char_num = 0
                 for phrase in sentence:
