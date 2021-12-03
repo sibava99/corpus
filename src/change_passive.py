@@ -183,8 +183,8 @@ def main():
         with open('passive-juman/train/' + os.path.split(path)[1],'w',encoding='utf-8') as passive_juman:
             for k,sentence in ntc_dict.items(): #fix here!! break and copy sid-juman without sid. delete passive predicat's argument info.
                 if not (k in knp_dict):
-                    joined = [''.join(x) for x in sentence]
-                    passive_juman.write(re.sub(passive_pat,'',''.join(joined)))
+                    joined = ''.join([''.join(x) for x in sentence])
+                    # passive_juman.write(re.sub(passive_pat,'',''.join(joined)))
                     continue
                 ntc_char_num = 0
                 for phrase in sentence:
@@ -194,6 +194,8 @@ def main():
                             pass
                         else:
                             ntc_char_num += len(tab_splited_morph[0])
+                        if('佳子' in morph):
+                            print(k,phrase)
                         if ('passive' in morph):
                             passive_count +=1
                             knp_char_num = 0
@@ -248,10 +250,10 @@ def main():
                             if(set(knp_id_list) == set(ntc_tag_dict.keys())):
                             # if(set(knp_id_list) != set(ntc_tag_dict.keys()) and ('exog' in ntc_tag_dict.keys()) and ('exog' not in knp_id_list)):
                                 success_count+=1
-                                tab_splited_morph.append(' '.join(argument_list + ['type="pred"'])) #if script can make the corresponding,append argumentlist,if not delete predicate informetion and exclude from analysis target
+                                tab_splited_morph.append(' '.join(argument_list + ['type="pred"\n'])) #if script can make the corresponding,append argumentlist,if not delete predicate informetion and exclude from analysis target
                                 # print(knp_id_list,set(ntc_tag_dict.keys()))
                                 # print(tag_info)
-                                print(argument_list)
+                                # print(argument_list)
                                 # print(morph)
                                 ga_index = 0
                                 o_index = 0
@@ -284,9 +286,9 @@ def main():
                                     ni_count +=1 
                                 elif(ga_index==0 and ni_index==0 and o_index==1):
                                     o_count +=1
+                            else:
+                                tab_splited_morph.append('\n')
                         edited_morph = '\t'.join(tab_splited_morph)
-                        if not(edited_morph.endswith('\n')):
-                            edited_morph += '\n'
                         passive_juman.write(edited_morph)
     
     # knp.close()
