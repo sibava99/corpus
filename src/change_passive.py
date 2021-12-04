@@ -194,7 +194,7 @@ def main():
                             pass
                         else:
                             ntc_char_num += len(tab_splited_morph[0])
-                        if('佳子' in morph):
+                        if('会派' in morph):
                             print(k,phrase)
                         if ('passive' in morph):
                             passive_count +=1
