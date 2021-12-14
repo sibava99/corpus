@@ -11,6 +11,7 @@ rel_pat = r'<rel type="(.+?)"'
 id_pat = r'id="(\d+?)"'
 tag_pat = re.compile(r'<.+?>')
 passive_pat = re.compile(r'alt="passive".*')
+success_count = 0
 
 def create_parser():
     parser = argparse.ArgumentParser()
@@ -230,6 +231,8 @@ def make_argumentlist(knp_morph,ntc_sentence_dict,knp_tag_dict,ntc_pred_info):
     after_pred_info = make_ntc_pred_info(' '.join(argument_list))
     
     if(set(ntc_pred_info.has_ids()) == set(after_pred_info.has_ids())):
+        global success_count
+        success_count += 1
         return argument_list
     else:
         return []
@@ -244,7 +247,6 @@ def convert_argument_id(morph,ntc_word_count,sid,ntc_sentence_dict,knp_dict,knp_
     joined_argumentlist = ' '.join(argument_list)
     tab_splited_morph.append(joined_argumentlist)
     edited_morph = '\t'.join(tab_splited_morph) + '\n'
-    print(edited_morph)
     return edited_morph
 
 def convert_passive_file(in_path,out_path,knp_dict,knp_tag_dict):
@@ -253,12 +255,13 @@ def convert_passive_file(in_path,out_path,knp_dict,knp_tag_dict):
     for k,sentence in ntc_sentence_dict.items():
         ntc_word_count = 0
         if not (k in knp_dict):
-            joined_sentence += ''.join([''.join(x) for x in sentence])
-            id_in_pred = extract_pat(id_in_pred_pat,joined_sentence)
-            if(id_in_pred_pat):
-                joined_sentence = re.sub(passive_pat,id_in_pred,joined_sentence)
-            else:
-                joined_sentence = re.sub(passive_pat,'',joined_sentence)
+            for bunsetsu in sentence:
+                for morph in bunsetsu:
+                    id_in_pred = extract_pat(id_in_pred_pat,joined_sentence)
+                    if(id_in_pred_pat):
+                        joined_sentence += re.sub(passive_pat,id_in_pred,morph)
+                    else:
+                        joined_sentence += re.sub(passive_pat,'',morph)
             continue
         for bunsetsu in sentence:
             for morph in bunsetsu:
@@ -286,6 +289,6 @@ def main():
     for path in ntc_pathlist:
         out_path = 'test_out/train/' + os.path.split(path)[1]
         convert_passive_file(path,out_path,knp_dict,knp_tag_dict)
-
+    print(f'success count {success_count}')
 if __name__ == '__main__':
     main()
