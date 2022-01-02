@@ -3,15 +3,23 @@ import re
 import os
 import argparse
 
-id_in_pred_pat = r'alt="passive".*?(id="[0-9]*")'
-target_pat = r'target="(.+?)"'
-sid_pat = r'sid="(.+?)"'
-arg_id_pat = r'id="(\d+?)"'
-rel_pat = r'<rel type="(.+?)"'
-id_pat = r'id="(\d+?)"'
+id_in_pred_pat = re.compile(r'alt="passive".*?(id="[0-9]*")')
+target_pat = re.compile(r'target="(.+?)"')
+sid_pat = re.compile(r'sid="(.+?)"')
+arg_id_pat = re.compile(r'id="(\d+?)"')
+rel_pat = re.compile(r'<rel type="(.+?)"')
+id_pat = re.compile(r'id="(\d+?)"')
 tag_pat = re.compile(r'<.+?>')
 passive_pat = re.compile(r'alt="passive".*')
+exo_pat = re.compile(r'\S*?exo.*?zero" ')
+
+
 success_count = 0
+before_zero_count = 0
+before_dep_count  = 0
+after_zero_count = 0
+after_dep_count  = 0
+count = 0
 
 def create_parser():
     parser = argparse.ArgumentParser()
@@ -93,9 +101,6 @@ def id_search(target:str,arg_id:str,ntc_sentence:str,knp_sentence:str):
             if(morph[0]=='*'):
                 continue
             ntc_word_count += len(morph.split('\t')[0])
-            # match_id = extract_pat(id_pat, morph)
-            # if(match_id):
-            #     ntc_id = match_id
             if((ntc_word_count == knp_word_count) and (ntc_id:=extract_pat(id_pat,morph))):
                 return ntc_id
             if(ntc_word_count >= knp_word_count):
@@ -119,7 +124,7 @@ def extract_pat(pat:str,text:str):
 
 class pred_info:
     # can't contain duble id in one kaku, use when append niyotte kaku.
-    def __init__(self,ga:str='None',ga_type:str='None',o:str='None',o_type:str='None',ni:str='None',ni_type:str='None'):
+    def __init__(self,ga:str='none',ga_type:str='none',o:str='none',o_type:str='none',ni:str='none',ni_type:str='none'):
         self.ga = ga
         self.ga_type = ga_type
         self.o = o
@@ -127,7 +132,7 @@ class pred_info:
         self.ni = ni
         self.ni_type = ni_type
     def has_ids(self):
-        ids = [x for x in [self.ga,self.o,self.ni] if not x == 'None']
+        ids = [x for x in [self.ga,self.o,self.ni] if not x == 'none']
         return ids
     def find_type(self,target_id):
         type_dict = {}
@@ -135,16 +140,24 @@ class pred_info:
         type_dict[self.o] = self.o_type
         type_dict[self.ni] = self.ni_type
         return type_dict[target_id]
+    def count_type(self):
+        type_list = [self.ga_type,self.o_type,self.ni_type]
+        type_freq_dict = {
+            'zero':type_list.count('zero'),
+            'dep':type_list.count('dep'),
+            'none':type_list.count('none')
+            }
+        return type_freq_dict
+    def print_all_info(self):
+        print(f'ga={self.ga} type={self.ga_type},o={self.o} type={self.o_type},ni={self.ni} type={self.ni_type}')
 
 def make_ntc_pred_info(pred_tag):
+    #for exclude exo
+    pred_tag = re.sub(exo_pat, '',pred_tag)
+
     pred_tag = pred_tag.replace('"','')
-    tags = pred_tag.split(' ') #ex)[alt="passive" ga="exog" ga_type="zero" o="17" o_type="dep" type="pred"]
-    # kaku_pat = r'([ga|o|ni])='
-    # kaku_info_dict = {}
-    # is_kaku_list = re.findall(kaku_pat,pred_tag)
-    # kaku_info_dict = {kaku: [extract_pat(kaku+'="(.*?)"',pred_tag),extract_pat(kaku + '_type="(.*?)"',pred_tag)] for kaku in is_kaku_list} 
-    #ex)kaku_info_dict = {ga:[exog,zero] o:[17,dep]}
     
+    tags = pred_tag.split(' ') #ex)[alt="passive" ga="exog" ga_type="zero" o="17" o_type="dep" type="pred"]
     tag_dict = {}
     for tag in tags:
         if not tag.startswith(('ga','o','ni')):
@@ -169,10 +182,6 @@ def search_knp_morph(sid,ntc_word_count,knp_dict):
             else:
                 knp_word_count += len(knp_morph.split(' ')[0])
 def append_argumentlist(tag,ntc_sentence_dict,knp_tag_dict,kaku,argument_list,ntc_pred_info):
-    # unspecified_list = ['不特定:人1','不特定:人2','不特定:人3','不特定:人6','不特定:物1','不特定:物2','不特定:物3','不特定:物4','後文','なし']
-    # if(target in unspecified_list):
-    #     return argument_list
-    # if((target == '不特定:人') or (target == '不特定:状況')):
     
     target = extract_pat(target_pat, tag)
     sid = extract_pat(sid_pat, tag)
@@ -229,13 +238,25 @@ def make_argumentlist(knp_morph,ntc_sentence_dict,knp_tag_dict,ntc_pred_info):
             pass
     argument_list.append('type="pred"')
     after_pred_info = make_ntc_pred_info(' '.join(argument_list))
-    
+    # if(ntc_pred_info.ga == 'exog' and ('exog' not in after_pred_info.has_ids())):
+
+
     if(set(ntc_pred_info.has_ids()) == set(after_pred_info.has_ids())):
-        global success_count
+        global before_zero_count,before_dep_count,after_zero_count,after_dep_count,success_count
         success_count += 1
+        ntc_count_dict  = ntc_pred_info.count_type()
+        after_count_dict  = after_pred_info.count_type()
+        before_zero_count += ntc_count_dict['zero']
+        after_zero_count += after_count_dict['zero']
+        before_dep_count += ntc_count_dict['dep']
+        after_dep_count += after_count_dict['dep']
+        print(set(ntc_pred_info.has_ids()),set(after_pred_info.has_ids()))
+        ntc_pred_info.print_all_info()
+        after_pred_info.print_all_info()
         return argument_list
     else:
         return []
+
 def convert_argument_id(morph,ntc_word_count,sid,ntc_sentence_dict,knp_dict,knp_tag_dict):
     tab_splited_morph = morph.split('\t')
     ntc_pred_info = make_ntc_pred_info(tab_splited_morph.pop())
@@ -249,9 +270,10 @@ def convert_argument_id(morph,ntc_word_count,sid,ntc_sentence_dict,knp_dict,knp_
     edited_morph = '\t'.join(tab_splited_morph) + '\n'
     return edited_morph
 
-def convert_passive_file(in_path,out_path,knp_dict,knp_tag_dict):
+def convert_passive_file(in_path,active_out_path,passive_out_path,knp_dict,knp_tag_dict):
     ntc_sentence_dict = make_sentence_dict([in_path],'utf-8')
     joined_sentence = ''
+    active_joined_sentence = ''
     for k,sentence in ntc_sentence_dict.items():
         ntc_word_count = 0
         if not (k in knp_dict):
@@ -259,22 +281,39 @@ def convert_passive_file(in_path,out_path,knp_dict,knp_tag_dict):
                 for morph in bunsetsu:
                     id_in_pred = extract_pat(id_in_pred_pat,joined_sentence)
                     if(id_in_pred_pat):
-                        joined_sentence += re.sub(passive_pat,id_in_pred,morph)
+                        pred_deleted_morph = re.sub(passive_pat,id_in_pred,morph)
+                        joined_sentence += pred_deleted_morph
+                        active_joined_sentence += pred_deleted_morph
                     else:
-                        joined_sentence += re.sub(passive_pat,'',morph)
+                        pred_deleted_morph = re.sub(passive_pat,'',morph)
+                        joined_sentence += pred_deleted_morph
+                        active_joined_sentence += pred_deleted_morph
             continue
+
         for bunsetsu in sentence:
             for morph in bunsetsu:
                 if(morph.startswith('*')):
                     joined_sentence += morph
+                    active_joined_sentence += morph
                     continue
                 ntc_word_count += len(morph.split('\t')[0])
                 if ('passive' in morph):
-                    joined_sentence += convert_argument_id(morph,ntc_word_count,k,ntc_sentence_dict,knp_dict,knp_tag_dict)
+                    edited_morph = convert_argument_id(morph,ntc_word_count,k,ntc_sentence_dict,knp_dict,knp_tag_dict)
+                    joined_sentence += edited_morph
+                    if('pred' not in edited_morph):
+                        active_joined_sentence += edited_morph #failed to correspond to id and delete pred info
+                    else:
+                        active_joined_sentence += morph # append original morph
                 else:    
                     joined_sentence += morph
-    with open(out_path,'w',encoding='utf-8') as out:
-        out.write(joined_sentence)
+                    active_joined_sentence += morph
+    #for exclude exo
+    joined_sentence = re.sub(exo_pat, '', joined_sentence)
+    active_joined_sentence = re.sub(exo_pat, '', active_joined_sentence)
+    with open(passive_out_path,'w',encoding='utf-8') as passive_out:
+        passive_out.write(joined_sentence)
+    with open(active_out_path,'w',encoding='utf-8') as active_out:
+        active_out.write(active_joined_sentence)
 
 
 
@@ -287,8 +326,9 @@ def main():
     knp_tag_dict = make_phrase_dict(knp_pathlist,'utf-8')   
 
     for path in ntc_pathlist:
-        out_path = 'test_out/train/' + os.path.split(path)[1]
-        convert_passive_file(path,out_path,knp_dict,knp_tag_dict)
-    print(f'success count {success_count}')
+        active_out_path = 'test_out/active/test/' + os.path.split(path)[1]
+        passive_out_path = 'test_out/passive/test/' + os.path.split(path)[1]
+        convert_passive_file(path,active_out_path,passive_out_path,knp_dict,knp_tag_dict)
+    print(f'success count {success_count}\nbefore zero count {before_zero_count}\nafter zero count {after_zero_count}\nbefore dep count {before_dep_count}\nafter dep count {after_dep_count}')
 if __name__ == '__main__':
     main()
