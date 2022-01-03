@@ -11,7 +11,7 @@ rel_pat = re.compile(r'<rel type="(.+?)"')
 id_pat = re.compile(r'id="(\d+?)"')
 tag_pat = re.compile(r'<.+?>')
 passive_pat = re.compile(r'alt="passive".*')
-exo_pat = re.compile(r'\S*?exo.*?zero" ')
+exo_pat = re.compile(r'(ga|o|ni)="exo." (ga|o|ni)_type="zero" ')
 
 
 success_count = 0
@@ -279,15 +279,19 @@ def convert_passive_file(in_path,active_out_path,passive_out_path,knp_dict,knp_t
         if not (k in knp_dict):
             for bunsetsu in sentence:
                 for morph in bunsetsu:
-                    id_in_pred = extract_pat(id_in_pred_pat,joined_sentence)
-                    if(id_in_pred_pat):
-                        pred_deleted_morph = re.sub(passive_pat,id_in_pred,morph)
-                        joined_sentence += pred_deleted_morph
-                        active_joined_sentence += pred_deleted_morph
+                    if('passive' in morph):
+                        id_in_pred = extract_pat(id_in_pred_pat,morph)
+                        if(id_in_pred_pat):
+                            pred_deleted_morph = re.sub(passive_pat,id_in_pred,morph)
+                            joined_sentence += pred_deleted_morph
+                            active_joined_sentence += pred_deleted_morph
+                        else:
+                            pred_deleted_morph = re.sub(passive_pat,'',morph)
+                            joined_sentence += pred_deleted_morph
+                            active_joined_sentence += pred_deleted_morph
                     else:
-                        pred_deleted_morph = re.sub(passive_pat,'',morph)
-                        joined_sentence += pred_deleted_morph
-                        active_joined_sentence += pred_deleted_morph
+                        joined_sentence += morph
+                        active_joined_sentence += morph
             continue
 
         for bunsetsu in sentence:
@@ -326,8 +330,8 @@ def main():
     knp_tag_dict = make_phrase_dict(knp_pathlist,'utf-8')   
 
     for path in ntc_pathlist:
-        active_out_path = 'test_out/active/test/' + os.path.split(path)[1]
-        passive_out_path = 'test_out/passive/test/' + os.path.split(path)[1]
+        active_out_path = 'test_out/active/train/' + os.path.split(path)[1]
+        passive_out_path = 'test_out/passive/train/' + os.path.split(path)[1]
         convert_passive_file(path,active_out_path,passive_out_path,knp_dict,knp_tag_dict)
     print(f'success count {success_count}\nbefore zero count {before_zero_count}\nafter zero count {after_zero_count}\nbefore dep count {before_dep_count}\nafter dep count {after_dep_count}')
 if __name__ == '__main__':
