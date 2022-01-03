@@ -25,7 +25,7 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--knp_dir',help='input_knpdir')
     parser.add_argument('--ntc_dir',help='ntc directory with the files corresponding to knp file')
-    # ex)python src/refact_change.py --knp_dir KyotoCorpus/dat/rel --ntc_dir sid-juman/dev
+    # ex)python src/refact_change.py --knp_dir KyotoCorpus/dat/rel --ntc_dir edited_corpus/sid-juman/dev
     return parser
 
 def make_sentence_dict(path_list,encoding_type):
@@ -330,8 +330,8 @@ def main():
     knp_tag_dict = make_phrase_dict(knp_pathlist,'utf-8')   
 
     for path in ntc_pathlist:
-        active_out_path = 'test_out/active/train/' + os.path.split(path)[1]
-        passive_out_path = 'test_out/passive/train/' + os.path.split(path)[1]
+        active_out_path = 'edited_corpus/test_out/active/train/' + os.path.split(path)[1]
+        passive_out_path = 'edited_corpus/test_out/passive/train/' + os.path.split(path)[1]
         convert_passive_file(path,active_out_path,passive_out_path,knp_dict,knp_tag_dict)
     print(f'success count {success_count}\nbefore zero count {before_zero_count}\nafter zero count {after_zero_count}\nbefore dep count {before_dep_count}\nafter dep count {after_dep_count}')
 if __name__ == '__main__':
