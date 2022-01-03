@@ -124,24 +124,28 @@ def extract_pat(pat:str,text:str):
 
 class pred_info:
     # can't contain duble id in one kaku, use when append niyotte kaku.
-    def __init__(self,ga:str='none',ga_type:str='none',o:str='none',o_type:str='none',ni:str='none',ni_type:str='none'):
+    def __init__(self,ga:str='none',ga_type:str='none',o:str='none',o_type:str='none',ni:str='none',ni_type:str='none',yotte:str='none',yotte_type:str='none'):
         self.ga = ga
         self.ga_type = ga_type
         self.o = o
         self.o_type = o_type
         self.ni = ni
         self.ni_type = ni_type
+        self.yotte = yotte
+        self.yotte_type = yotte_type
     def has_ids(self):
-        ids = [x for x in [self.ga,self.o,self.ni] if not x == 'none']
+        ids = [x for x in [self.ga,self.o,self.ni,self.yotte] if not x == 'none']
         return ids
     def find_type(self,target_id):
         type_dict = {}
         type_dict[self.ga] = self.ga_type
         type_dict[self.o] = self.o_type
         type_dict[self.ni] = self.ni_type
+        type_dict[self.yotte] = self.yotte_type
+
         return type_dict[target_id]
     def count_type(self):
-        type_list = [self.ga_type,self.o_type,self.ni_type]
+        type_list = [self.ga_type,self.o_type,self.ni_type,self.yotte_type]
         type_freq_dict = {
             'zero':type_list.count('zero'),
             'dep':type_list.count('dep'),
@@ -149,18 +153,18 @@ class pred_info:
             }
         return type_freq_dict
     def print_all_info(self):
-        print(f'ga={self.ga} type={self.ga_type},o={self.o} type={self.o_type},ni={self.ni} type={self.ni_type}')
+        print(f'ga={self.ga} type={self.ga_type},o={self.o} type={self.o_type},ni={self.ni} type={self.ni_type},yotte={self.yotte} type={self.yotte_type}')
 
 def make_ntc_pred_info(pred_tag):
     #for exclude exo
-    pred_tag = re.sub(exo_pat, '',pred_tag)
+    # pred_tag = re.sub(exo_pat, '',pred_tag)
 
     pred_tag = pred_tag.replace('"','')
     
     tags = pred_tag.split(' ') #ex)[alt="passive" ga="exog" ga_type="zero" o="17" o_type="dep" type="pred"]
     tag_dict = {}
     for tag in tags:
-        if not tag.startswith(('ga','o','ni')):
+        if not tag.startswith(('ga','o','ni','yotte')):
             continue
         key,value = tag.split("=")
         tag_dict[key] = value
@@ -224,10 +228,13 @@ def make_argumentlist(knp_morph,ntc_sentence_dict,knp_tag_dict,ntc_pred_info):
         if(rel_type):
             if(rel_type == 'ガ'):
                 argument_list = append_argumentlist(tag, ntc_sentence_dict,knp_tag_dict,'ga', argument_list,ntc_pred_info)
-            elif(rel_type == 'ニ'or rel_type=='ニヨッテ'):
+            elif(rel_type == 'ニ'):
                 argument_list = append_argumentlist(tag, ntc_sentence_dict,knp_tag_dict,'ni', argument_list,ntc_pred_info)
             elif(rel_type == 'ヲ'):
                 argument_list = append_argumentlist(tag, ntc_sentence_dict,knp_tag_dict,'o', argument_list,ntc_pred_info)
+            elif(rel_type == 'ニヨッテ'):
+                argument_list = append_argumentlist(tag, ntc_sentence_dict,knp_tag_dict,'yotte', argument_list,ntc_pred_info)
+                print('found niyotte!!')
             # elif(rel_type == 'カラ'):
             #     argument_list = append_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'kara', argument_list,ntc_tag_dict)
             # elif(rel_type == 'デ'):
@@ -236,11 +243,15 @@ def make_argumentlist(knp_morph,ntc_sentence_dict,knp_tag_dict,ntc_pred_info):
             #     argument_list = append_argumentlist(sid, target, arg_id, ntc_dict, knp_tag_dict, 'ga2', argument_list,ntc_tag_dict)
         else:
             pass
-    argument_list.append('type="pred"')
+    
     after_pred_info = make_ntc_pred_info(' '.join(argument_list))
-    # if(ntc_pred_info.ga == 'exog' and ('exog' not in after_pred_info.has_ids())):
-
-
+    if(ntc_pred_info.ga == 'exog' and ('exog' not in after_pred_info.has_ids())):
+        argument_list.append('yotte="exog"')
+        argument_list.append('yotte_type="zero"')
+        after_pred_info = make_ntc_pred_info(' '.join(argument_list))
+    
+    argument_list.append('type="pred"')
+    
     if(set(ntc_pred_info.has_ids()) == set(after_pred_info.has_ids())):
         global before_zero_count,before_dep_count,after_zero_count,after_dep_count,success_count
         success_count += 1
@@ -312,8 +323,8 @@ def convert_passive_file(in_path,active_out_path,passive_out_path,knp_dict,knp_t
                     joined_sentence += morph
                     active_joined_sentence += morph
     #for exclude exo
-    joined_sentence = re.sub(exo_pat, '', joined_sentence)
-    active_joined_sentence = re.sub(exo_pat, '', active_joined_sentence)
+    # joined_sentence = re.sub(exo_pat, '', joined_sentence)
+    # active_joined_sentence = re.sub(exo_pat, '', active_joined_sentence)
     with open(passive_out_path,'w',encoding='utf-8') as passive_out:
         passive_out.write(joined_sentence)
     with open(active_out_path,'w',encoding='utf-8') as active_out:
@@ -330,8 +341,8 @@ def main():
     knp_tag_dict = make_phrase_dict(knp_pathlist,'utf-8')   
 
     for path in ntc_pathlist:
-        active_out_path = 'test_out/active/train/' + os.path.split(path)[1]
-        passive_out_path = 'test_out/passive/train/' + os.path.split(path)[1]
+        active_out_path = 'ntc_add_yotte/active/train/' + os.path.split(path)[1]
+        passive_out_path = 'ntc_add_yotte/passive/train/' + os.path.split(path)[1]
         convert_passive_file(path,active_out_path,passive_out_path,knp_dict,knp_tag_dict)
     print(f'success count {success_count}\nbefore zero count {before_zero_count}\nafter zero count {after_zero_count}\nbefore dep count {before_dep_count}\nafter dep count {after_dep_count}')
 if __name__ == '__main__':
