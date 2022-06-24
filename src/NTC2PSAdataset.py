@@ -43,18 +43,31 @@ def create_arglist(psa_tag:str) -> list:
         })
     return arg_list
 
-def extract_pred_id_info(lines:str) -> dict:
-    
-
-def main():
-    parser = create_parser()
-    args = parser.parse_args()
-    
-    f = open('/home/sibava/corpus/NTC_1.5/dat/ntc/knp/9501ED-0000-950101020.ntc',encoding='euc_jp')
-    lines = f.readlines()
+def extract_psa_info(ntc_text:str) -> dict:
+    ntc_text = re.sub('an._id="\d*"', '', ntc_text)
+    lines = ntc_text.splitlines()
 
     preds_info = []
-    ids_info = {}   # arg_id is key. value
+    ids_info = {
+        'exog':{
+            'surface_string': 'exog',
+            'eq_group': '',
+            'sent_index':'-1',
+            'arg_indices':[-1]
+        },
+        'exo1':{
+            'surface_string': 'exo1',
+            'eq_group': '',
+            'sent_index':'-1',
+            'arg_indices':[-1]
+        },
+        'exo2':{
+            'surface_string': 'exo2',
+            'eq_group': '',
+            'sent_index':'-1',
+            'arg_indices':[-1]
+        }
+    }   
     sentences = [[]]
     sent_index = 0
     morph_index = 0
@@ -89,7 +102,8 @@ def main():
 
             if('id' in psa_tag):
                 arg_id = extract_pat(id_pat,psa_tag)
-                eq_id = extract_pat(eq_pat, psa_tag)
+                eq_id = extract_pat(eq_pat,psa_tag)
+                print(eq_id)
                 arg_indices = [morph_index]
                 if(pos == '接尾辞'):
                     surface_string = sentences[sent_index][morph_index - 1] + surface_string
@@ -101,7 +115,44 @@ def main():
                     'arg_indices':arg_indices
                 }
             morph_index += 1
+    return {
+        'preds_info':preds_info,
+        'ids_info':ids_info,
+        'sentences':sentences
+    }
+
+def create_goldchain(ids_info:dict)->dict:
+    goldchain = {}
+    ids_info = [x for x in ids_info.values() if len(x['eq_group'])>0 ]
+    for id_info in ids_info:
+        eq_id = id_info['eq_group']
+        if(eq_id in goldchain):
+            goldchain[eq_id].append(id_info['surface_string'])
+            print('AAaaaaaaaaaaaas')
+        else:
+            goldchain[eq_id] = [id_info['surface_string']]
+    return goldchain
+
+def main():
+    parser = create_parser()
+    args = parser.parse_args()
     
+    f = open('/home/sibava/corpus/NTC_1.5/dat/ntc/knp/9501ED-0000-950101020.ntc',encoding='euc_jp')
+    ntc_text = f.read()
+    psa_info = extract_psa_info(ntc_text)
+    preds_info = psa_info['preds_info']
+    ids_info = psa_info['ids_info']
+    sentences = psa_info['sentences']
+    goldchain = create_goldchain(ids_info)
+    # preds_infoを順に回しidのsurfaceをids_infoから取ってくる,共参照の処理,sentencesから述語が登場する文までを文脈として取ってくる
+    # eqが同じ形態素にはなぜかidも同じものがふられていた。id_dictを生成し直しこれらを区別する必要がある？
+    # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
+    for pred_info in preds_info:
+        for arg in pred_info['arg_list']:
+            arg_id,case_type,arg_type = arg.values()
+            id_info = ids_info[arg_id]
+            arg_surface,eq_group,arg_sent_index,arg_indices = id_info.values()
+
 
 if __name__ == '__main__':
     main()
