@@ -157,12 +157,9 @@ def search_nearest_arg(coref_list:list,arg_type:str,pred_sent_index:str,pred_ind
         arg_surface,eq_id,arg_sent_index,arg_indices,= arg.values() 
         arg_index = calc_abs_index(sentences,int(arg_sent_index),int(arg_indices[0]))
         if(abs(pred_index - arg_index) < min_pred_distance):
+            min_pred_distance = abs(pred_index - arg_index)
             nearest_arg = arg
-            
-        if(eq_id == "5"):
-            pprint(arg)
-        print(arg_index)
-    return arg
+    return nearest_arg
 
 def main():
     parser = create_parser()
@@ -179,11 +176,11 @@ def main():
     # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
     for pred_info in preds_info:
         pred_surface,pred_type,pred_sent_index,pred_indices,arg_list = pred_info.values()
+        pprint(pred_info)
         for arg in arg_list:
             arg_id,case_type,arg_type = arg.values()
             coref_list = ids_info[arg_id]
             id_info = search_nearest_arg(coref_list,arg_type,pred_sent_index,pred_indices,sentences)
-
-
+            pprint(id_info)
 if __name__ == '__main__':
     main()
