@@ -3,6 +3,7 @@ import re
 import os
 import argparse
 from pprint import pprint 
+from typing import List, Tuple, Dict, Set
 
 id_pat = r'id="(\d*?)"'
 eq_pat = r'eq="(\d*?)"'
@@ -10,6 +11,28 @@ alt_pat = r'alt="(\w*?)"'
 case_pat = r'(\w*?)='
 case_id_pat = r'(ga|o|ni)="(\d*?|exo.)"'
 arg_type_pat= r'type="(\w*?)"'
+
+class Arg(TypedDict):
+    """
+    
+    """
+    arg_id:str
+    case_type:str
+    arg_type:str
+
+class IdArg(TypedDict):
+    surface_string:str
+    eq_group:str
+    sent_index:int
+    arg_indices:List[int]
+
+class Pred(TypedDict):
+    surface_string:str
+    pred_type:str
+    sent_index:int
+    pred_indices:List[int]
+    arg_list:Lise[Arg]
+
 
 def create_parser():
     parser = argparse.ArgumentParser()
@@ -26,6 +49,14 @@ def extract_pat(pat:str,text:str,group:int = 1):
     else:
         result = ''
     return result
+
+def _concat_arg(lines,line_index,morph_index,surface_string,arg_indices):
+    surface_string = lines[line_index].split()[0] + surface_string
+    arg_indices.insert(0,morph_index)
+    previous_line = lines[line_index - 1]
+    if('接尾辞' in lines[line_index]):
+        surface_string,arg_indices = _concat_arg(lines, line_index -1 , morph_index -1, surface_string, arg_indices)
+    return surface_string,arg_indices
 
 def create_arglist(psa_tag:str) -> list:
     arg_list = []
@@ -103,10 +134,12 @@ def extract_psa_info(ntc_text:str) -> dict:
             if('id' in psa_tag):
                 arg_id = extract_pat(id_pat,psa_tag)
                 eq_id = extract_pat(eq_pat,psa_tag)
-                arg_indices = [morph_index]
-                if(pos == '接尾辞'):
-                    surface_string = sentences[sent_index][morph_index - 1] + surface_string
-                    arg_indices.insert(0,morph_index - 1)
+                # arg_indices = [morph_index]
+                # if(pos == '接尾辞'):
+                #     previus_line = lines[i-1]
+                #     surface_string = sentences[sent_index][morph_index - 1] + surface_string
+                #     arg_indices.insert(0,morph_index - 1)
+                surface_string,arg_indices = _concat_arg(lines=lines,line_index= i,morph_index=morph_index,surface_string='',arg_indices=[])
                 if(arg_id  in ids_info):
                     ids_info[arg_id].append(
                         {
@@ -132,16 +165,14 @@ def extract_psa_info(ntc_text:str) -> dict:
     }
 
 def create_goldchain(ids_info:dict)->dict:
-    goldchain = {}
-    ids_info = [x for x in ids_info.values() if len(x['eq_group'])>0 ]
-    for id_info in ids_info:
-        eq_id = id_info['eq_group']
-        if(eq_id in goldchain):
-            goldchain[eq_id].append(id_info['surface_string'])
-            print('AAaaaaaaaaaaaas')
-        else:
-            goldchain[eq_id] = [id_info['surface_string']]
-    return goldchain
+    goldchains = {}
+    for arg_id,coref_list in ids_info.items():
+        goldchain = []
+        for arg in coref_list:
+            goldchain.append(arg['surface_string'])
+        goldchain = set(goldchain)
+        goldchains[arg_id] = goldchain
+    return goldchains
 
 def calc_abs_index(sentences:list,sent_index:int,index:int)->int:
     abs_index = 0
@@ -174,13 +205,30 @@ def main():
     # preds_infoを順に回しidのsurfaceをids_infoから取ってくる,共参照の処理,sentencesから述語が登場する文までを文脈として取ってくる
     # eqが同じ形態素にはなぜかidも同じものがふられていた。id_dictを生成し直しこれらを区別する必要がある？
     # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
-    for pred_info in preds_info:
+    gold_chains = create_goldchain(ids_info=ids_info)
+    for pred_info in preds_info[0:3]:
         pred_surface,pred_type,pred_sent_index,pred_indices,arg_list = pred_info.values()
-        pprint(pred_info)
+        context = sentences[:pred_sent_index+1]
         for arg in arg_list:
             arg_id,case_type,arg_type = arg.values()
             coref_list = ids_info[arg_id]
             id_info = search_nearest_arg(coref_list,arg_type,pred_sent_index,pred_indices,sentences)
-            pprint(id_info)
+            arg_sent_index,_,arg_indices,arg_surface=id_info.values()
+            gold_chain = gold_chains[arg_id]
+            psa_instance = {
+                'context':context,
+                'pred_surface':pred_surface,
+                'pred_type':pred_type,
+                'pred_sent_index':pred_sent_index,
+                'pred_indices':pred_indices,
+                'case_type':case_type,
+                'arg_type':arg_type,
+                'arg_surface':arg_surface,
+                'arg_sent_index':arg_sent_index,
+                'arg_indices':arg_sent_index,
+                'goldchain':gold_chain,
+                'sid':'S-ID:950101020-002'
+            }
+            pprint(psa_instance)
 if __name__ == '__main__':
     main()
