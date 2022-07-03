@@ -4,13 +4,15 @@ import os
 import argparse
 from pprint import pprint 
 from typing import List, Tuple, Dict, Set,TypedDict
+import json
 
 id_pat = r'id="(\d*?)"'
 eq_pat = r'eq="(\d*?)"'
 alt_pat = r'alt="(\w*?)"'
 case_pat = r'(\w*?)='
 case_id_pat = r'(ga|o|ni)="(\d*?|exo.)"'
-arg_type_pat= r'type="(\w*?)"'
+case_id_pat = r'="(\d*?|exo.)"'
+arg_type_pat= r'_type="(\w*?)"'
 
 class Arg(TypedDict):
     """
@@ -94,6 +96,22 @@ def create_arglist(psa_tag:str) -> list[Arg]:
         arg_list.append(arg)
     return arg_list
 
+def new_create_arglist(psa_tag:str) -> list[Arg]:
+    arg_list = []
+    for case in ['ga','o','ni']:
+        arg_id = extract_pat(case + case_id_pat,psa_tag)
+        arg_type = extract_pat(case + arg_type_pat,psa_tag)
+        if(arg_id == '' and arg_type == ''):
+            arg_id = 'none'
+            arg_type = 'none'
+        arg:Arg = {
+            'arg_id':arg_id,
+            'case_type':case,
+            'arg_type':arg_type
+        }
+        arg_list.append(arg)
+    return arg_list
+
 def extract_psa_info(ntc_text:str) -> dict:
     ntc_text = re.sub('an._id="\d*"', '', ntc_text)
     lines = ntc_text.splitlines()
@@ -136,11 +154,18 @@ def extract_psa_info(ntc_text:str) -> dict:
             'sent_index':'-1',
             'morph_indices':[-1]
         }
+    none:IdMorph = {
+            'surface_string': 'none',
+            'eq_group': '',
+            'sent_index':'-1',
+            'morph_indices':[-1]
+        }
 
     idmorphs = {
         'exog':[exog],
         'exo1':[exo1],
-        'exo2':[exo2]
+        'exo2':[exo2],
+        'none':[none]
     } 
 
     sentences = [[]]
@@ -165,7 +190,7 @@ def extract_psa_info(ntc_text:str) -> dict:
                     sahen_noun = sentences[sent_index][morph_index-1]
                     surface_string = sahen_noun + surface_string
                     pred_indices.insert(0, morph_index-1)
-                arg_list = create_arglist(psa_tag)
+                arg_list = new_create_arglist(psa_tag)
                 # preds.append(
                 #     {
                 #         'surface_string':surface_string,
@@ -228,13 +253,13 @@ def extract_psa_info(ntc_text:str) -> dict:
         'sentences':sentences
     }
 
-def create_goldchain(idmorphs:dict)->dict:
+def create_goldchains(idmorphs:dict)->dict:
     goldchains = {}
     for arg_id,coref_list in idmorphs.items():
         goldchain = []
         for arg in coref_list:
             goldchain.append(arg['surface_string'])
-        goldchain = set(goldchain)
+        goldchain = list(set(goldchain))
         goldchains[arg_id] = goldchain
     return goldchains
 
@@ -259,6 +284,8 @@ def search_nearest_arg(coref_list:list,pred_sent_index:str,pred_indices:list,sen
 def determin_argtype(pred:Pred,idmorph:IdMorph,arg_type:str)->str:
     if(arg_type == 'dep'):
         return 'dep'
+    elif(arg_type == 'none'):
+        return 'none'
     elif(idmorph['surface_string'].startswith('exo')):
         return idmorph['surface_string'] #exog,exo1,exo2
     elif(pred['sent_index'] == idmorph['sent_index']):
@@ -270,8 +297,10 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     
-    f = open('/home/sibava/corpus/NTC_1.5/dat/ntc/knp/9501ED-0000-950101020.ntc',encoding='euc_jp')
-    ntc_text = f.read()
+    with open('/home/sibava/corpus/NTC_1.5/dat/ntc/knp/9501ED-0000-950101020.ntc',encoding='euc_jp',mode='r') as f:
+        ntc_text = f.read()
+    output_file = open('./test.jsonl',encoding='utf-8',mode='w')
+
     psa_info = extract_psa_info(ntc_text)
     preds = psa_info['preds']
     idmorphs = psa_info['idmorphs']
@@ -279,7 +308,7 @@ def main():
     # predsを順に回しidのsurfaceをidmorphsから取ってくる,共参照の処理,sentencesから述語が登場する文までを文脈として取ってくる
     # eqが同じ形態素にはなぜかidも同じものがふられていた。id_dictを生成し直しこれらを区別する必要がある？
     # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
-    gold_chains = create_goldchain(idmorphs=idmorphs)
+    goldchains = create_goldchains(idmorphs=idmorphs)
     for pred in preds:
         # pred_surface,pred_type,pred_sent_index,pred_indices,arg_list = pred.values()
         context = sentences[:pred["sent_index"]+1]
@@ -289,7 +318,7 @@ def main():
             nearlest_idmorph = search_nearest_arg(coref_list,pred['sent_index'],pred['pred_indices'],sentences)
             arg_type = determin_argtype(pred,nearlest_idmorph,arg['arg_type'])
             # arg_sent_index,_,morph_indices,arg_surface=id_info.values()
-            gold_chain = gold_chains[arg['arg_id']]
+            goldchain = goldchains[arg['arg_id']]
             psa_instance = {
                 'context':context,
                 'pred_surface':pred['surface_string'],
@@ -301,9 +330,11 @@ def main():
                 'arg_surface':nearlest_idmorph['surface_string'],
                 'arg_sent_index':nearlest_idmorph['morph_indices'],
                 'arg_indices':nearlest_idmorph['morph_indices'],
-                'goldchain':gold_chain,
+                'goldchain':goldchain,
                 'sid':'S-ID:950101020-002'
             }
-            pprint(psa_instance['arg_type'])
+            output_file.write(json.dumps(psa_instance) + '\n')
+    output_file.close()
+    
 if __name__ == '__main__':
     main()
