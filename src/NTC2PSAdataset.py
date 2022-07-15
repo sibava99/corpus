@@ -5,6 +5,7 @@ import argparse
 from pprint import pprint 
 from typing import List, Tuple, Dict, Set,TypedDict
 import json
+from tqdm import tqdm
 
 id_pat = r'id="(\d*?)"'
 eq_pat = r'eq="(\d*?)"'
@@ -43,7 +44,7 @@ class IdMorph(TypedDict):
 
 class Pred(TypedDict):
     surface_string:str
-    pred_type:str
+    alt_type:str
     sent_index:int
     pred_indices:List[int]
     arg_list:List[IdMorph]
@@ -194,7 +195,7 @@ def extract_psa_info(ntc_text:str) -> dict:
                 # preds.append(
                 #     {
                 #         'surface_string':surface_string,
-                #         'pred_type':extract_pat(alt_pat,psa_tag),
+                #         'alt_type':extract_pat(alt_pat,psa_tag),
                 #         'sent_index':sent_index,
                 #         'pred_indices':pred_indices,
                 #         'arg_list':arg_list
@@ -202,7 +203,7 @@ def extract_psa_info(ntc_text:str) -> dict:
                 # )
                 pred:Pred ={
                         'surface_string':surface_string,
-                        'pred_type':extract_pat(alt_pat,psa_tag),
+                        'alt_type':extract_pat(alt_pat,psa_tag),
                         'sent_index':sent_index,
                         'pred_indices':pred_indices,
                         'arg_list':arg_list,
@@ -296,44 +297,52 @@ def determin_argtype(pred:Pred,idmorph:IdMorph,arg_type:str)->str:
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    
-    with open('/home/sibava/corpus/NTC_1.5/dat/ntc/knp/9501ED-0000-950101020.ntc',encoding='euc_jp',mode='r') as f:
-        ntc_text = f.read()
-    output_file = open('./test.jsonl',encoding='utf-8',mode='w')
+    ntc_dir = args.ntc_dir
 
-    psa_info = extract_psa_info(ntc_text)
-    preds = psa_info['preds']
-    idmorphs = psa_info['idmorphs']
-    sentences = psa_info['sentences']
-    # predsを順に回しidのsurfaceをidmorphsから取ってくる,共参照の処理,sentencesから述語が登場する文までを文脈として取ってくる
-    # eqが同じ形態素にはなぜかidも同じものがふられていた。id_dictを生成し直しこれらを区別する必要がある？
-    # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
-    goldchains = create_goldchains(idmorphs=idmorphs)
-    for pred in preds:
-        # pred_surface,pred_type,pred_sent_index,pred_indices,arg_list = pred.values()
-        context = sentences[:pred["sent_index"]+1]
-        for arg in pred["arg_list"]:
-            # arg_id,case_type,arg_type = arg.values()
-            coref_list = idmorphs[arg['arg_id']]
-            nearlest_idmorph = search_nearest_arg(coref_list,pred['sent_index'],pred['pred_indices'],sentences)
-            arg_type = determin_argtype(pred,nearlest_idmorph,arg['arg_type'])
-            # arg_sent_index,_,morph_indices,arg_surface=id_info.values()
-            goldchain = goldchains[arg['arg_id']]
-            psa_instance = {
-                'context':context,
-                'pred_surface':pred['surface_string'],
-                'pred_type':pred['pred_type'],
-                'pred_sent_index':pred['sent_index'],
-                'pred_indices':pred['pred_indices'],
-                'case_type':arg['case_type'],
-                'arg_type':arg_type,
-                'arg_surface':nearlest_idmorph['surface_string'],
-                'arg_sent_index':nearlest_idmorph['morph_indices'],
-                'arg_indices':nearlest_idmorph['morph_indices'],
-                'goldchain':goldchain,
-                'sid':'S-ID:950101020-002'
-            }
-            output_file.write(json.dumps(psa_instance) + '\n')
+    if os.path.exists(ntc_dir):
+        print(f"Loading {ntc_dir}")
+    else:
+        print("NTC path does not exist")
+
+    ntc_paths = glob.glob(os.path.join(ntc_dir,'dat/ntc/knp/*'))
+    output_file = open('./psa_instanceC.jsonl',encoding='utf-8',mode='w')
+    print(len(ntc_paths)) 
+    for ntc_path in tqdm(ntc_paths):
+        with open(ntc_path,encoding='euc_jp',mode='r') as f:
+            ntc_text = f.read()
+        psa_info = extract_psa_info(ntc_text)
+        preds = psa_info['preds']
+        idmorphs = psa_info['idmorphs']
+        sentences = psa_info['sentences']
+        # predsを順に回しidのsurfaceをidmorphsから取ってくる,共参照の処理,sentencesから述語が登場する文までを文脈として取ってくる
+        # eqが同じ形態素にはなぜかidも同じものがふられていた。id_dictを生成し直しこれらを区別する必要がある？
+        # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
+        goldchains = create_goldchains(idmorphs=idmorphs)
+        for pred in preds:
+            # pred_surface,alt_type,pred_sent_index,pred_indices,arg_list = pred.values()
+            context = sentences[:pred["sent_index"]+1]
+            for arg in pred["arg_list"]:
+                # arg_id,case_type,arg_type = arg.values()
+                coref_list = idmorphs[arg['arg_id']]
+                nearlest_idmorph = search_nearest_arg(coref_list,pred['sent_index'],pred['pred_indices'],sentences)
+                arg_type = determin_argtype(pred,nearlest_idmorph,arg['arg_type'])
+                # arg_sent_index,_,morph_indices,arg_surface=id_info.values()
+                goldchain = goldchains[arg['arg_id']]
+                psa_instance = {
+                    'context':context,
+                    'pred_surface':pred['surface_string'],
+                    'alt_type':pred['alt_type'],
+                    'pred_sent_index':pred['sent_index'],
+                    'pred_indices':pred['pred_indices'],
+                    'case_type':arg['case_type'],
+                    'arg_type':arg_type,
+                    'arg_surface':nearlest_idmorph['surface_string'],
+                    'arg_sent_index':nearlest_idmorph['morph_indices'],
+                    'arg_indices':nearlest_idmorph['morph_indices'],
+                    'goldchain':goldchain,
+                    'ntc_path':ntc_path
+                }
+                output_file.write(json.dumps(psa_instance) + '\n')
     output_file.close()
     
 if __name__ == '__main__':
