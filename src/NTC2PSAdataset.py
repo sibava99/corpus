@@ -53,7 +53,7 @@ class Pred(TypedDict):
 def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ntc_dir',help='path to NTC')
-    # ex)python src/refact_change.py --knp_dir KyotoCorpus/dat/rel --ntc_dir edited_corpus/sid-juman/dev
+    parser.add_argument('--output_path',help='output path')
     return parser
 
 def extract_pat(pat:str,text:str,group:int = 1)->str:
@@ -89,11 +89,6 @@ def create_arglist(psa_tag:str) -> list[Arg]:
             'case_type':case_type,
             'arg_type':arg_type
         }
-        # arg_list.append({
-        #     'arg_id':arg_id,
-        #     'case_type':case_type,
-        #     'arg_type':arg_type
-        # })
         arg_list.append(arg)
     return arg_list
 
@@ -117,26 +112,6 @@ def extract_psa_info(ntc_text:str) -> dict:
     ntc_text = re.sub('an._id="\d*"', '', ntc_text)
     lines = ntc_text.splitlines()
 
-    # idmorphs = {
-    #     'exog':[{
-    #         'surface_string': 'exog',
-    #         'eq_group': '',
-    #         'sent_index':'-1',
-    #         'morph_indices':[-1]
-    #     }],
-    #     'exo1':[{
-    #         'surface_string': 'exo1',
-    #         'eq_group': '',
-    #         'sent_index':'-1',
-    #         'morph_indices':[-1]
-    #     }],
-    #     'exo2':[{
-    #         'surface_string': 'exo2',
-    #         'eq_group': '',
-    #         'sent_index':'-1',
-    #         'morph_indices':[-1]
-    #     }]
-    # }   
     exog:IdMoprh = {
             'surface_string': 'exog',
             'eq_group': '',
@@ -192,15 +167,6 @@ def extract_psa_info(ntc_text:str) -> dict:
                     surface_string = sahen_noun + surface_string
                     pred_indices.insert(0, morph_index-1)
                 arg_list = new_create_arglist(psa_tag)
-                # preds.append(
-                #     {
-                #         'surface_string':surface_string,
-                #         'alt_type':extract_pat(alt_pat,psa_tag),
-                #         'sent_index':sent_index,
-                #         'pred_indices':pred_indices,
-                #         'arg_list':arg_list
-                #     }
-                # )
                 pred:Pred ={
                         'surface_string':surface_string,
                         'alt_type':extract_pat(alt_pat,psa_tag),
@@ -228,23 +194,11 @@ def extract_psa_info(ntc_text:str) -> dict:
                 }
                 if(arg_id  in idmorphs):
                     idmorphs[arg_id].append(
-                        # {
-                        # 'surface_string' : surface_string,
-                        # 'eq_group': eq_id,
-                        # 'sent_index':sent_index,
-                        # 'morph_indices':morph_indices
-                        # }
                         idmorph
                     )
                 else:
                     idmorphs[arg_id] = [
-                    # {
-                    #     'surface_string' : surface_string,
-                    #     'eq_group': eq_id,
-                    #     'sent_index':sent_index,
-                    #     'morph_indices':morph_indices
-                    # }
-                    idmorph
+                        idmorph
                     ]
 
             morph_index += 1
@@ -298,14 +252,16 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     ntc_dir = args.ntc_dir
+    output_path = args.output_path
 
     if os.path.exists(ntc_dir):
         print(f"Loading {ntc_dir}")
     else:
         print("NTC path does not exist")
 
-    ntc_paths = glob.glob(os.path.join(ntc_dir,'dat/ntc/knp/*'))
-    output_file = open('./psa_instanceC.jsonl',encoding='utf-8',mode='w')
+    # ntc_paths = glob.glob(os.path.join(ntc_dir,'dat/ntc/knp/*'))
+    ntc_paths = glob.glob(os.path.join(ntc_dir,'*'))
+    output_file = open(os.path.join(output_path,'psat5instance.test.jsonl'),encoding='utf-8',mode='w')
     print(len(ntc_paths)) 
     for ntc_path in tqdm(ntc_paths):
         with open(ntc_path,encoding='euc_jp',mode='r') as f:
@@ -319,14 +275,11 @@ def main():
         # 同じidでも距離によって区別し、最も近い物をgold,遠いものをgoldchainとする。この距離は自分で測る
         goldchains = create_goldchains(idmorphs=idmorphs)
         for pred in preds:
-            # pred_surface,alt_type,pred_sent_index,pred_indices,arg_list = pred.values()
             context = sentences[:pred["sent_index"]+1]
             for arg in pred["arg_list"]:
-                # arg_id,case_type,arg_type = arg.values()
                 coref_list = idmorphs[arg['arg_id']]
                 nearlest_idmorph = search_nearest_arg(coref_list,pred['sent_index'],pred['pred_indices'],sentences)
                 arg_type = determin_argtype(pred,nearlest_idmorph,arg['arg_type'])
-                # arg_sent_index,_,morph_indices,arg_surface=id_info.values()
                 goldchain = goldchains[arg['arg_id']]
                 psa_instance = {
                     'context':context,
