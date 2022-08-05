@@ -2,11 +2,11 @@ import glob
 import os.path
 import re
 def main():
-	juman_ntc_pathlist = glob.glob('/home/sibava/corpus/ntc-train-with-juman/test/*')
+	juman_ntc_pathlist = glob.glob('/home/sibava/corpus/NTC_1.5_split/test/*')
 	for juman_path in juman_ntc_pathlist:
-		with open(juman_path,'r',encoding='utf-8') as juman:
+		with open(juman_path,'r',encoding='euc-jp') as juman:
 			s = juman.read()
-			if('拒否'in s and '人種'in s):
+			if('遺憾' in s):
 				print(juman_path)
 				# print(s)
 			# lines = juman.readlines()

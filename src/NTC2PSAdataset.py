@@ -261,8 +261,8 @@ def main():
 
     # ntc_paths = glob.glob(os.path.join(ntc_dir,'dat/ntc/knp/*'))
     ntc_paths = glob.glob(os.path.join(ntc_dir,'*'))
-    output_file = open(os.path.join(output_path,'psat5instance.test.jsonl'),encoding='utf-8',mode='w')
-    print(len(ntc_paths)) 
+    output_file = open(os.path.join(output_path,'psat5instance.dev.jsonl'),encoding='utf-8',mode='w')
+    print(len(ntc_paths))
     for ntc_path in tqdm(ntc_paths):
         with open(ntc_path,encoding='euc_jp',mode='r') as f:
             ntc_text = f.read()

@@ -22,7 +22,7 @@ def main():
 
 	tokenizer = T5Tokenizer.from_pretrained('megagonlabs/t5-base-japanese-web')
 	psa_df = pd.read_json(psa_instance,orient='records',lines=True)
-	outputfile = open("/home/sibava/corpus/psat5instance.jsonl",mode='w')
+	outputfile = open(output_path,mode='w')
 
 	psa_df['arg_surface'].mask(psa_df['arg_type'] == 'exog','<extra_id_99>',inplace=True)
 	psa_df['arg_surface'].mask(psa_df['arg_type'] == 'exo1','<extra_id_98>',inplace=True)
@@ -70,7 +70,7 @@ def main():
 		
 	t5_df = pd.DataFrame({
 		"input_ids":input_ids,
-		"label_ids":label_ids,
+		"label":label_ids,
 		"gold_arguments":gold_arguments,
 		"arg_types":arg_types,
 		"alt_type":ga_df['alt_type']
